@@ -117,8 +117,7 @@ upload-hub/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
-├── .env.example
-└── LEARN.md                    # راهنمای یادگیری قدم‌به‌قدم کد
+└── .env.example
 ```
 
 ---
@@ -293,7 +292,7 @@ curl -L "http://localhost:8000/files/1/download" \
 
 ---
 
-## ⚠️ نکات پرودАкشن
+## ⚠️ نکات پروداکشن
 
 - 🔑 `SECRET_KEY` را حتماً عوض کن و **در گیت commit نکن** (`.env` در `.gitignore` است).
 - 🗝️ اگر Access/Secret Key آروان جایی لو رفت، از پنل **rotate/باطل** کن.
@@ -305,9 +304,6 @@ curl -L "http://localhost:8000/files/1/download" \
 
 ---
 
-## 📝 لایسنس
-
-منتشرشده تحت لایسنس **MIT**.
 
 <div align="center">
 ساخته‌شده با ⚡ FastAPI + ArvanCloud s3
