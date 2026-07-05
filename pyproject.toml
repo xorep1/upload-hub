@@ -9,6 +9,7 @@ dependencies = [
     "bcrypt==4.1.3",
     "boto3==1.34.144",
     "email-validator==2.2.0",
+    "faker>=40.28.1",
     "fastapi==0.111.0",
     "psutil==5.9.8",
     "pydantic==2.7.4",
