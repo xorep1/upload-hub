@@ -1,0 +1,26 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=sqlite:////data/otp_auth.db
+      - SECRET_KEY=${SECRET_KEY} 
+      - DEBUG=${DEBUG}
+    volumes:
+      - ./data:/data
+    dns:
+      - 178.22.122.100  # شکن
+      - 185.51.200.2    # شکن
+      - 217.218.155.155 # مخابرات ایران (برای دسترسی بدون اختلال به کاوه‌نگار)
+      - 8.8.8.8
+    depends_on:
+      - redis

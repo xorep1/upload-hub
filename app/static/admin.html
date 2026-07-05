@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1420; --card: #1a2130; --border: #2a3347; --text: #e6ebf5;
+    --muted: #8792a8; --green: #35c07a; --red: #e5544b;
+    --accent: #4f8ccf; --yellow: #e0b34a;
+  }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .card h3 { font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
+  .metric { font-size: 30px; font-weight: 700; }
+  .metric small { font-size: 14px; color: var(--muted); font-weight: 400; }
+  .bar { height: 6px; background: var(--border); border-radius: 4px; margin-top: 10px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--accent); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .up { background: rgba(53,192,122,.15); color: var(--green); } .up .dot { background: var(--green); }
+  .down { background: rgba(229,84,75,.15); color: var(--red); } .down .dot { background: var(--red); }
+  section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 20px; }
+  section h2 { font-size: 15px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+  .tag.on { background: rgba(53,192,122,.15); color: var(--green); }
+  .tag.off { background: rgba(229,84,75,.15); color: var(--red); }
+  .tag.admin { background: rgba(224,179,74,.15); color: var(--yellow); }
+  button { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  button.danger { background: var(--red); }
+  button:hover { opacity: .9; }
+  input { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 14px; width: 100%; }
+  #login { max-width: 340px; margin: 80px auto; }
+  #login h1 { text-align: center; }
+  #login .sub { text-align: center; }
+  #login form { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+  .err { color: var(--red); font-size: 13px; min-height: 18px; }
+  .muted { color: var(--muted); }
+  .row-actions { display: flex; gap: 6px; }
+  .hidden { display: none; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <h1>🔐 Admin Panel</h1>
+  <div class="sub">Sign in with an admin account</div>
+  <form onsubmit="doLogin(event)">
+    <input id="u" placeholder="Username or phone" autocomplete="username">
+    <input id="p" type="password" placeholder="Password" autocomplete="current-password">
+    <div class="err" id="loginErr"></div>
+    <button type="submit">Sign in</button>
+  </form>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dash" class="hidden">
+  <div class="topbar">
+    <div>
+      <h1>Admin Panel</h1>
+      <div class="sub" id="who"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span class="muted" style="font-size:12px" id="lastUpdate"></span>
+      <button class="ghost" onclick="refreshAll()">↻ Refresh</button>
+      <button class="ghost" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- health -->
+  <div class="grid" id="healthCards"></div>
+
+  <!-- system metrics -->
+  <div class="grid" id="statCards"></div>
+
+  <!-- storage (bucket usage) -->
+  <div class="grid" id="storageCards"></div>
+
+  <!-- files -->
+  <section>
+    <h2>
+      Files <span class="muted" id="fileCount"></span>
+      <span style="display:flex;gap:8px;align-items:center">
+        <input id="fileSearch" placeholder="Search files…" style="width:220px;padding:7px 10px;font-size:13px"
+               oninput="onFileSearch()">
+        <button class="ghost" onclick="loadFiles()">Search</button>
+      </span>
+    </h2>
+    <div style="overflow-x:auto"><table id="filesTable"></table></div>
+  </section>
+
+  <!-- users -->
+  <section>
+    <h2>Users <span class="muted" id="userCount"></span></h2>
+    <div style="overflow-x:auto"><table id="usersTable"></table></div>
+  </section>
+
+  <!-- tokens -->
+  <section>
+    <h2>Active refresh sessions <span class="muted" id="tokCount"></span></h2>
+    <div style="overflow-x:auto"><table id="tokensTable"></table></div>
+  </section>
+</div>
+
+<script>
+const API = "";                       // same origin
+let token = localStorage.getItem("admin_token") || "";
+
+function authHeaders() { return { "Authorization": "Bearer " + token }; }
+
+async function doLogin(e) {
+  e.preventDefault();
+  const err = document.getElementById("loginErr");
+  err.textContent = "";
+  const body = new URLSearchParams();
+  body.set("username", document.getElementById("u").value);
+  body.set("password", document.getElementById("p").value);
+  try {
+    const res = await fetch(API + "/auth/token", { method: "POST", body });
+    if (!res.ok) throw new Error("Invalid credentials");
+    const data = await res.json();
+    token = data.access_token;
+    localStorage.setItem("admin_token", token);
+    // verify admin by hitting a protected endpoint
+    const check = await fetch(API + "/admin/stats", { headers: authHeaders() });
+    if (check.status === 403) throw new Error("This account is not an admin");
+    if (!check.ok) throw new Error("Login failed");
+    showDash();
+  } catch (ex) { err.textContent = ex.message; }
+}
+
+function showDash() {
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("dash").classList.remove("hidden");
+  refreshAll();
+}
+
+function logout() {
+  localStorage.removeItem("admin_token");
+  token = "";
+  document.getElementById("dash").classList.add("hidden");
+  document.getElementById("login").classList.remove("hidden");
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, { ...opts, headers: { ...authHeaders(), ...(opts.headers || {}) } });
+  if (res.status === 401 || res.status === 403) { logout(); throw new Error("Session expired"); }
+  return res.json();
+}
+
+function bar(pct) { return `<div class="bar"><span style="width:${pct}%"></span></div>`; }
+
+async function loadHealth() {
+  const h = await api("/admin/health");
+  document.getElementById("healthCards").innerHTML = h.services.map(s => `
+    <div class="card">
+      <h3>${s.service}</h3>
+      <span class="pill ${s.status === 'up' ? 'up' : 'down'}"><span class="dot"></span>${s.status.toUpperCase()}</span>
+      <div class="muted" style="margin-top:8px;font-size:12px">${s.status === 'up' ? s.latency_ms + ' ms' : (s.error || '')}</div>
+    </div>`).join("");
+}
+
+async function loadStats() {
+  const s = await api("/admin/stats");
+  document.getElementById("statCards").innerHTML = `
+    <div class="card"><h3>CPU</h3><div class="metric">${s.cpu_percent}<small>%</small></div>
+      ${bar(s.cpu_percent)}<div class="muted" style="margin-top:8px;font-size:12px">${s.cpu_count} cores</div></div>
+    <div class="card"><h3>Memory</h3><div class="metric">${s.memory.percent}<small>%</small></div>
+      ${bar(s.memory.percent)}<div class="muted" style="margin-top:8px;font-size:12px">${s.memory.used_mb} / ${s.memory.total_mb} MB</div></div>
+    <div class="card"><h3>Disk</h3><div class="metric">${s.disk.percent}<small>%</small></div>
+      ${bar(s.disk.percent)}<div class="muted" style="margin-top:8px;font-size:12px">${s.disk.used_gb} / ${s.disk.total_gb} GB</div></div>`;
+}
+
+let fileSearchTimer = null;
+function onFileSearch() {
+  clearTimeout(fileSearchTimer);
+  fileSearchTimer = setTimeout(loadFiles, 300);
+}
+
+async function loadStorage() {
+  const s = await api("/admin/storage");
+  const live = s.live || {};
+  const liveTag = !s.configured
+    ? `<span class="pill down"><span class="dot"></span>NOT CONFIGURED</span>`
+    : (live.status === "up"
+        ? `<span class="pill up"><span class="dot"></span>REACHABLE</span>`
+        : `<span class="pill down"><span class="dot"></span>${(live.status || 'unknown').toUpperCase()}</span>`);
+  document.getElementById("storageCards").innerHTML = `
+    <div class="card" style="grid-column:1 / -1">
+      <h3>Bucket storage${s.bucket ? ' · ' + s.bucket : ''}</h3>
+      <div class="metric">${s.used_human} <small>/ ${s.quota_human} · ${s.percent}%</small></div>
+      ${bar(Math.min(s.percent, 100))}
+      <div class="muted" style="margin-top:8px;font-size:12px">
+        ${s.file_count} file(s) · ${s.free_human} free · max upload ${s.max_upload_human} &nbsp; ${liveTag}
+      </div>
+    </div>`;
+}
+
+async function loadFiles() {
+  const q = document.getElementById("fileSearch").value.trim();
+  const files = await api("/admin/files" + (q ? "?q=" + encodeURIComponent(q) : ""));
+  document.getElementById("fileCount").textContent = "(" + files.length + ")";
+  let rows = `<tr><th>ID</th><th>Name</th><th>File</th><th>Owner</th><th>Size</th><th>Type</th><th>Uploaded</th><th>Actions</th></tr>`;
+  rows += files.map(f => `
+    <tr>
+      <td>${f.id}</td>
+      <td>${escapeHtml(f.display_name)}${f.description ? `<div class="muted" style="font-size:11px;margin-top:4px">${escapeHtml(f.description)}</div>` : ''}</td>
+      <td class="muted">${escapeHtml(f.original_filename)}</td>
+      <td>${escapeHtml(f.owner_username || '?')} <span class="muted">#${f.owner_id}</span></td>
+      <td>${f.size_human}</td>
+      <td class="muted">${escapeHtml(f.content_type || '—')}</td>
+      <td>${fmtTime(f.created_at)}</td>
+      <td class="row-actions">
+        ${f.download_url ? `<a href="${f.download_url}" target="_blank"><button class="ghost">Download</button></a>` : ''}
+        <button class="ghost" onclick="editFile(${f.id}, '${jsEsc(f.display_name)}', '${jsEsc(f.description || '')}')">Edit</button>
+        <button class="danger" onclick="deleteFile(${f.id}, '${jsEsc(f.display_name)}')">Delete</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="8" class="muted">No files</td></tr>`;
+  document.getElementById("filesTable").innerHTML = rows;
+}
+
+async function editFile(id, name, desc) {
+  const newName = prompt("New display name:", name);
+  if (newName === null) return;
+  const newDesc = prompt("Description (leave empty to clear):", desc);
+  if (newDesc === null) return;
+  await api(`/admin/files/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ display_name: newName.trim(), description: newDesc.trim() }),
+  });
+  loadFiles(); loadStorage();
+}
+
+async function deleteFile(id, name) {
+  if (!confirm(`Delete file "${name}"? This removes it from the bucket permanently.`)) return;
+  await api(`/admin/files/${id}`, { method: "DELETE" });
+  loadFiles(); loadStorage();
+}
+
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function jsEsc(s) { return String(s == null ? "" : s).replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, " "); }
+
+async function loadUsers() {
+  const users = await api("/admin/users");
+  document.getElementById("userCount").textContent = "(" + users.length + ")";
+  let rows = `<tr><th>ID</th><th>Username</th><th>Phone</th><th>Email</th><th>Status</th><th>Actions</th></tr>`;
+  rows += users.map(u => {
+    const banned = !!u.ban;
+    const banInfo = banned
+      ? `<div class="muted" style="font-size:11px;margin-top:4px">reason: ${u.ban.reason}${u.ban.until ? ' · until ' + fmtTime(u.ban.until) : ' · permanent'}</div>`
+      : '';
+    return `
+    <tr>
+      <td>${u.id}</td>
+      <td>${u.username} ${u.is_admin ? '<span class="tag admin">admin</span>' : ''}</td>
+      <td>${u.phone}</td>
+      <td>${u.email || '<span class="muted">—</span>'}</td>
+      <td>
+        <span class="tag ${u.is_active ? 'on' : 'off'}">${u.is_active ? 'active' : 'disabled'}</span>
+        ${banned ? '<span class="tag off">banned</span>' : ''}
+        ${banInfo}
+      </td>
+      <td class="row-actions">
+        <button class="ghost" onclick="toggleUser(${u.id})">${u.is_active ? 'Disable' : 'Enable'}</button>
+        ${banned
+          ? `<button class="ghost" onclick="unbanUser(${u.id})">Unban</button>`
+          : `<button class="danger" onclick="banUser(${u.id}, '${u.username}')">Ban</button>`}
+        <button class="danger" onclick="revokeAll(${u.id})">Revoke sessions</button>
+      </td>
+    </tr>`;
+  }).join("");
+  document.getElementById("usersTable").innerHTML = rows;
+}
+
+async function banUser(id, name) {
+  const reason = prompt(`Ban reason for "${name}":`);
+  if (reason === null || reason.trim() === "") return;
+  const minsRaw = prompt("Ban duration in MINUTES (leave empty = permanent):", "60");
+  if (minsRaw === null) return;
+  const minutes = minsRaw.trim() === "" ? 0 : parseInt(minsRaw, 10);
+  if (minsRaw.trim() !== "" && (isNaN(minutes) || minutes < 0)) { alert("Invalid number of minutes"); return; }
+  await api(`/admin/users/${id}/ban`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason: reason.trim(), minutes }),
+  });
+  refreshAll();
+}
+
+async function unbanUser(id) {
+  await api(`/admin/users/${id}/unban`, { method: "POST" });
+  refreshAll();
+}
+
+async function loadTokens() {
+  const t = await api("/admin/tokens");
+  document.getElementById("tokCount").textContent = "(" + t.count + ")";
+  let rows = `<tr><th>User</th><th>Login time</th><th>IP</th><th>Device</th><th>OS</th><th>Browser</th><th>Expires in</th><th>Action</th></tr>`;
+  rows += t.sessions.map(s => `
+    <tr>
+      <td>${s.username || '?'} <span class="muted">#${s.user_id}</span></td>
+      <td>${fmtTime(s.login_at)}</td>
+      <td class="muted">${s.ip || '—'}</td>
+      <td>${deviceIcon(s.device)} ${s.device || '—'}</td>
+      <td>${s.os || '—'}</td>
+      <td>${s.browser || '—'}</td>
+      <td>${fmtTtl(s.expires_in)}</td>
+      <td><button class="danger" onclick="revokeOne(${s.user_id}, '${s.jti}')">Revoke</button></td>
+    </tr>`).join("") || `<tr><td colspan="8" class="muted">No active sessions</td></tr>`;
+  document.getElementById("tokensTable").innerHTML = rows;
+}
+
+function fmtTime(iso) {
+  if (!iso) return "—";
+  try { return new Date(iso).toLocaleString(); } catch { return iso; }
+}
+function deviceIcon(d) {
+  return { mobile: "📱", tablet: "📱", desktop: "💻", bot: "🤖" }[d] || "🖥️";
+}
+
+function fmtTtl(sec) {
+  if (sec == null || sec < 0) return "—";
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+  if (d) return `${d}d ${h}h`;
+  if (h) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+async function toggleUser(id) { await api(`/admin/users/${id}/toggle-active`, { method: "POST" }); refreshAll(); }
+async function revokeAll(id) { await api(`/admin/users/${id}/revoke-all`, { method: "POST" }); loadTokens(); }
+async function revokeOne(uid, jti) { await api(`/admin/tokens/revoke?user_id=${uid}&jti=${jti}`, { method: "POST" }); loadTokens(); }
+
+async function refreshAll() {
+  try {
+    await Promise.all([loadHealth(), loadStats(), loadStorage(), loadFiles(), loadUsers(), loadTokens()]);
+    document.getElementById("lastUpdate").textContent = "Updated " + new Date().toLocaleTimeString();
+  } catch (e) { /* logout already handled */ }
+}
+
+// auto-refresh stats/health every 10s
+setInterval(() => { if (token && !document.getElementById("dash").classList.contains("hidden")) { loadHealth(); loadStats(); } }, 10000);
+
+// try existing token on load
+if (token) {
+  fetch(API + "/admin/stats", { headers: authHeaders() })
+    .then(r => { if (r.ok) showDash(); else logout(); })
+    .catch(logout);
+}
+</script>
+</body>
+</html>
